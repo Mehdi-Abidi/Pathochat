@@ -14,7 +14,7 @@ st.set_page_config(
 )
 
 # Vector DB path
-db_path = Path(__file__).parent / "vector_store" / "faiss_database"
+db_path = "vector_store/faiss_database"
 
 # Enhanced slate-themed CSS styling
 st.markdown("""
@@ -419,36 +419,12 @@ st.markdown("""
 @st.cache_resource
 def load_vector_store():
     try:
-        # Convert Path to string for FAISS
-        db_path_str = str(db_path)
-        
-        # Debugging information
-        st.write(f"Current directory: {os.getcwd()}")
-        st.write(f"Contents of root: {os.listdir('.')}")
-        
-        if not os.path.exists(db_path_str):
-            st.error(f"Database directory not found at: {db_path_str}")
-            if os.path.exists('vector_store'):
-                st.write("Found 'vector_store' directory, contents:", os.listdir('vector_store'))
-            return None
-        
-        st.write(f"Database directory contents: {os.listdir(db_path_str)}")
-        
-        # Verify required files exist
-        required_files = ['index.faiss', 'index.pkl']
-        missing_files = [f for f in required_files if not os.path.exists(os.path.join(db_path_str, f))]
-        
-        if missing_files:
-            st.error(f"Missing required files: {missing_files}")
-            return None
-
         embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-        db = FAISS.load_local(db_path_str, embeddings=embeddings, allow_dangerous_deserialization=True)
-        st.success("✅ Vector database loaded successfully!")
+        db = FAISS.load_local(db_path,embeddings=embeddings, allow_dangerous_deserialization=True)
         return db
-        
     except Exception as e:
-        st.error(f"❌ Failed to load vector store: {str(e)}", icon="⚠️")
+        st.write(f"Loading from: {db_path}")
+        st.error(f"Failed to load vector store: {str(e)}")
         return None
 
 # Prompt template
