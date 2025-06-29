@@ -619,6 +619,8 @@ def main():
         
         try:
             # Load vector store
+            print("🔍 Attempting to load FAISS DB from:", db_path)
+
             db = load_vector_store()
             if db is None:
                 error_msg = "❌ Medical database unavailable. Please ensure the pathology knowledge base is properly loaded."
