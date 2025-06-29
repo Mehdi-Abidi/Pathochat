@@ -15,7 +15,7 @@ st.set_page_config(
 
 # Vector DB path
 db_path = os.path.join(os.path.dirname(__file__), "vector_store", "faiss_database")
-
+st.warning(f"🔍 Attempting to load FAISS DB from: {db_path}")
 # Enhanced slate-themed CSS styling
 st.markdown("""
 <style>
@@ -620,7 +620,8 @@ def main():
         try:
             # Load vector store
             print("🔍 Attempting to load FAISS DB from:", db_path)
-
+            st.write("🔍 FAISS DB path:", db_path)
+            st.warning(f"🔍 Attempting to load FAISS DB from: {db_path}")
             db = load_vector_store()
             if db is None:
                 error_msg = "❌ Medical database unavailable. Please ensure the pathology knowledge base is properly loaded."
