@@ -421,6 +421,8 @@ def load_vector_store():
     try:
         embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
         db = FAISS.load_local(db_path,embeddings=embeddings, allow_dangerous_deserialization=True)
+        st.success("✅ FAISS DB loaded successfully")
+        st.write("✅ FAISS DB loaded successfully")
         return db
     except Exception as e:
         st.write(f"Loading from: {db_path}")
