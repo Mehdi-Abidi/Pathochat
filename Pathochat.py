@@ -14,7 +14,10 @@ st.set_page_config(
 )
 
 # Vector DB path
-db_path = "vector_store/faiss_database"
+from pathlib import Path
+
+# This will work both locally and in Streamlit Cloud
+db_path = Path(__file__).parent / "vector_store" / "faiss_database"
 
 # Enhanced slate-themed CSS styling
 st.markdown("""
