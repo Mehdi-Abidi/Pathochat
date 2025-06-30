@@ -14,7 +14,7 @@ st.set_page_config(
 )
 
 # Vector DB path
-db_path = os.path.join(os.getcwd())
+db_path = os.path.join(os.getcwd(), "faiss_database")
 st.write("Current dir:", os.getcwd())
 st.write("Files in dir:", os.listdir("faiss_database"))
 
