@@ -5,6 +5,10 @@ from langchain_core.prompts import PromptTemplate
 from langchain.chains import RetrievalQA
 from langchain_community.vectorstores import FAISS
 from datetime import datetime
+import gdown  # For downloading from Google Drive
+import pickle
+
+
 
 # Configure page
 st.set_page_config(
@@ -14,8 +18,21 @@ st.set_page_config(
 )
 
 # Vector DB path
-db_path = "vector_store/faiss_database"
+FAISS_INDEX_URL = "https://drive.google.com/file/d/1A88Fd13xoKNhdVKQ8wKsvdGjexFC16pF/view?usp=drive_link"
+PKL_INDEX_URL = "https://drive.google.com/file/d/1ZEUeDAoQY5OL_CLVRxGb3zxObr2KyrV3/view?usp=drive_link"
 
+@st.cache_resource
+def download_faiss_index():
+    """Download FAISS index files from Google Drive if they don't exist."""
+    os.makedirs("vector_store/faiss_database", exist_ok=True)
+    
+    faiss_path = "vector_store/faiss_database/index.faiss"
+    pkl_path = "vector_store/faiss_database/index.pkl"
+    
+    if not os.path.exists(faiss_path):
+        gdown.download(FAISS_INDEX_URL, faiss_path, quiet=False)
+    if not os.path.exists(pkl_path):
+        gdown.download(PKL_INDEX_URL, pkl_path, quiet=False)
 # Enhanced slate-themed CSS styling
 st.markdown("""
 <style>
@@ -419,12 +436,26 @@ st.markdown("""
 @st.cache_resource
 def load_vector_store():
     try:
+        # Download files directly (no directory structure needed)
+        os.makedirs("temp_faiss", exist_ok=True)
+        faiss_path = "temp_faiss/index.faiss"
+        pkl_path = "temp_faiss/index.pkl"
+        
+        if not os.path.exists(faiss_path):
+            gdown.download(FAISS_INDEX_URL, faiss_path, quiet=False)
+        if not os.path.exists(pkl_path):
+            gdown.download(PKL_INDEX_URL, pkl_path, quiet=False)
+
+        # Load FAISS directly from the downloaded files
         embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-        db = FAISS.load_local(db_path,embeddings=embeddings, allow_dangerous_deserialization=True)
+        db = FAISS.load_local(
+            "temp_faiss",  # Now points to our temp download location
+            embeddings=embeddings,
+            allow_dangerous_deserialization=True
+        )
         return db
     except Exception as e:
-        st.write(f"Loading from: {db_path}")
-        st.error(f"Failed to load vector store: {str(e)}")
+        st.error(f"❌ Failed to load vector store: {str(e)}")
         return None
 
 # Prompt template
