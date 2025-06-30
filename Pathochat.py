@@ -12,22 +12,22 @@ st.set_page_config(
     page_icon="🔬", 
     layout="wide"
 )
-file_path = os.path.join(os.getcwd(), "faiss_database", "index.faiss")
+# file_path = os.path.join(os.getcwd(), "faiss_database", "index.faiss")
 
-# Get file size in bytes
-size_bytes = os.path.getsize(file_path)
+# # Get file size in bytes
+# size_bytes = os.path.getsize(file_path)
 
-# Convert to megabytes (optional)
-size_mb = size_bytes / (1024 * 1024)
+# # Convert to megabytes (optional)
+# size_mb = size_bytes / (1024 * 1024)
 
-st.write(f"File size: {size_mb:.2f} MB")
+# st.write(f"File size: {size_mb:.2f} MB")
 # Vector DB path
 db_path = os.path.join(os.getcwd(), "faiss_database")
-st.write("Current dir:", os.getcwd())
-st.write("Files in dir:", os.listdir("faiss_database"))
+# st.write("Current dir:", os.getcwd())
+# st.write("Files in dir:", os.listdir("faiss_database"))
 
-st.write("DB path:", db_path)
-st.write("All files:", os.listdir(db_path))
+# st.write("DB path:", db_path)
+# st.write("All files:", os.listdir(db_path))
 
 
 # Enhanced slate-themed CSS styling
