@@ -12,7 +12,15 @@ st.set_page_config(
     page_icon="🔬", 
     layout="wide"
 )
+file_path = os.path.join(os.getcwd(), "faiss_database", "index.faiss")
 
+# Get file size in bytes
+size_bytes = os.path.getsize(file_path)
+
+# Convert to megabytes (optional)
+size_mb = size_bytes / (1024 * 1024)
+
+print(f"File size: {size_mb:.2f} MB")
 # Vector DB path
 db_path = os.path.join(os.getcwd(), "faiss_database")
 st.write("Current dir:", os.getcwd())
