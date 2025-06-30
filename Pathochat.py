@@ -6,9 +6,6 @@ from langchain.chains import RetrievalQA
 from langchain_community.vectorstores import FAISS
 from datetime import datetime
 
-import pickle
-
-from tqdm import tqdm
 
 
 # Configure page
@@ -19,45 +16,19 @@ st.set_page_config(
 )
 
 # Vector DB path
-FAISS_FILE_ID = "1A88Fd13xoKNhdVKQ8wKsvdGjexFC16pF"  # Just the ID part
-PKL_FILE_ID = "1ZEUeDAoQY5OL_CLVRxGb3zxObr2KyrV3"    # Just the ID part
+FAISS_FILE_ID = st.secrets["vector_store"]["faiss_file_id"]
+PKL_FILE_ID = st.secrets["vector_store"]["pkl_file_id"]
 
-# --- Hybrid Downloader Function ---
-def download_file(shared_url, destination):
-    """Hybrid downloader that tries gdown first, falls back to requests"""
-    try:
-        # Try gdown if available
-        import gdown
-        gdown.download(f"https://drive.google.com/uc?id={shared_url}", destination, quiet=False)
-    except ImportError:
-        # Fallback to requests
-        import requests
-        URL = "https://drive.google.com/uc?export=download"
-        
-        with requests.Session() as session:
-            response = session.get(URL, params={'id': shared_url}, stream=True)
-            token = None
-            
-            # Handle large file confirmation
-            for key, value in response.cookies.items():
-                if key.startswith('download_warning'):
-                    token = value
-                    break
-            
-            if token:
-                params = {'id': shared_url, 'confirm': token}
-                response = session.get(URL, params=params, stream=True)
-            
-            # Save with progress bar
-            total_size = int(response.headers.get('content-length', 0))
-            progress = tqdm(total=total_size, unit='B', unit_scale=True)
-            
-            with open(destination, "wb") as f:
-                for chunk in response.iter_content(1024):
-                    if chunk:
-                        progress.update(len(chunk))
-                        f.write(chunk)
-            progress.close()
+
+@st.cache_resource
+def download_faiss_index():
+    """Download FAISS index files from Google Drive using secrets"""
+    os.makedirs("vector_store/faiss_database", exist_ok=True)
+    
+    faiss_path = "vector_store/faiss_database/index.faiss"
+    pkl_path = "vector_store/faiss_database/index.pkl"
+    
+
 
 # Enhanced slate-themed CSS styling
 st.markdown("""
@@ -465,7 +436,7 @@ def load_vector_store():
         os.makedirs("vector_store/faiss_database", exist_ok=True)
         faiss_path = "vector_store/faiss_database/index.faiss"
         pkl_path = "vector_store/faiss_database/index.pkl"
-        
+       
         if not os.path.exists(faiss_path):
             download_file(FAISS_FILE_ID, faiss_path)
         if not os.path.exists(pkl_path):
@@ -682,6 +653,10 @@ def main():
         try:
             # Load vector store
             db = load_vector_store()
+            st.sidebar.write("FAISS ID:", FAISS_FILE_ID)
+            st.sidebar.write("PKL ID:", PKL_FILE_ID)
+            file_ok = os.path.exists(faiss_path) and os.path.getsize(faiss_path) > 1000000  # >1MB
+            st.sidebar.write("FAISS valid:", file_ok)
             if db is None:
                 error_msg = "❌ Medical database unavailable. Please ensure the pathology knowledge base is properly loaded."
                 st.error(error_msg)
