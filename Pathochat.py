@@ -5,7 +5,7 @@ from langchain_core.prompts import PromptTemplate
 from langchain.chains import RetrievalQA
 from langchain_community.vectorstores import FAISS
 from datetime import datetime
-import gdown  # For downloading from Google Drive
+
 import pickle
 
 from tqdm import tqdm
