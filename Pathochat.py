@@ -8,6 +8,7 @@ from datetime import datetime
 import gdown  # For downloading from Google Drive
 import pickle
 
+from tqdm import tqdm
 
 
 # Configure page
@@ -18,21 +19,46 @@ st.set_page_config(
 )
 
 # Vector DB path
-FAISS_INDEX_URL = "https://drive.google.com/file/d/1A88Fd13xoKNhdVKQ8wKsvdGjexFC16pF/view?usp=drive_link"
-PKL_INDEX_URL = "https://drive.google.com/file/d/1ZEUeDAoQY5OL_CLVRxGb3zxObr2KyrV3/view?usp=drive_link"
+FAISS_FILE_ID = "1A88Fd13xoKNhdVKQ8wKsvdGjexFC16pF"  # Just the ID part
+PKL_FILE_ID = "1ZEUeDAoQY5OL_CLVRxGb3zxObr2KyrV3"    # Just the ID part
 
-@st.cache_resource
-def download_faiss_index():
-    """Download FAISS index files from Google Drive if they don't exist."""
-    os.makedirs("vector_store/faiss_database", exist_ok=True)
-    
-    faiss_path = "vector_store/faiss_database/index.faiss"
-    pkl_path = "vector_store/faiss_database/index.pkl"
-    
-    if not os.path.exists(faiss_path):
-        gdown.download(FAISS_INDEX_URL, faiss_path, quiet=False)
-    if not os.path.exists(pkl_path):
-        gdown.download(PKL_INDEX_URL, pkl_path, quiet=False)
+# --- Hybrid Downloader Function ---
+def download_file(shared_url, destination):
+    """Hybrid downloader that tries gdown first, falls back to requests"""
+    try:
+        # Try gdown if available
+        import gdown
+        gdown.download(f"https://drive.google.com/uc?id={shared_url}", destination, quiet=False)
+    except ImportError:
+        # Fallback to requests
+        import requests
+        URL = "https://drive.google.com/uc?export=download"
+        
+        with requests.Session() as session:
+            response = session.get(URL, params={'id': shared_url}, stream=True)
+            token = None
+            
+            # Handle large file confirmation
+            for key, value in response.cookies.items():
+                if key.startswith('download_warning'):
+                    token = value
+                    break
+            
+            if token:
+                params = {'id': shared_url, 'confirm': token}
+                response = session.get(URL, params=params, stream=True)
+            
+            # Save with progress bar
+            total_size = int(response.headers.get('content-length', 0))
+            progress = tqdm(total=total_size, unit='B', unit_scale=True)
+            
+            with open(destination, "wb") as f:
+                for chunk in response.iter_content(1024):
+                    if chunk:
+                        progress.update(len(chunk))
+                        f.write(chunk)
+            progress.close()
+
 # Enhanced slate-themed CSS styling
 st.markdown("""
 <style>
@@ -436,26 +462,31 @@ st.markdown("""
 @st.cache_resource
 def load_vector_store():
     try:
-        # Download files directly (no directory structure needed)
-        os.makedirs("temp_faiss", exist_ok=True)
-        faiss_path = "temp_faiss/index.faiss"
-        pkl_path = "temp_faiss/index.pkl"
+        os.makedirs("vector_store/faiss_database", exist_ok=True)
+        faiss_path = "vector_store/faiss_database/index.faiss"
+        pkl_path = "vector_store/faiss_database/index.pkl"
         
         if not os.path.exists(faiss_path):
-            gdown.download(FAISS_INDEX_URL, faiss_path, quiet=False)
+            download_file(FAISS_FILE_ID, faiss_path)
         if not os.path.exists(pkl_path):
-            gdown.download(PKL_INDEX_URL, pkl_path, quiet=False)
+            download_file(PKL_FILE_ID, pkl_path)
 
-        # Load FAISS directly from the downloaded files
         embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-        db = FAISS.load_local(
-            "temp_faiss",  # Now points to our temp download location
+        return FAISS.load_local(
+            "vector_store/faiss_database",
             embeddings=embeddings,
             allow_dangerous_deserialization=True
         )
-        return db
     except Exception as e:
-        st.error(f"❌ Failed to load vector store: {str(e)}")
+        st.error(f"""
+        ❌ Failed to load medical knowledge base:
+        {str(e)}
+        
+        Please ensure:
+        1. Google Drive files are shared publicly
+        2. File IDs are correct
+        3. Internet connection is stable
+        """)
         return None
 
 # Prompt template
