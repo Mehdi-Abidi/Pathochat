@@ -14,8 +14,34 @@ def main():
         layout="wide"
     )
 
-    # Vector DB path
+    # Vector DB path - DEBUG
     db_path = "vector_store/faiss_database"
+    st.write(f"🔍 DEBUG: Vector DB path configured as: {db_path}")
+    st.write(f"🔍 DEBUG: Current working directory: {os.getcwd()}")
+    st.write(f"🔍 DEBUG: Directory exists: {os.path.exists(db_path)}")
+    
+    # Check if path exists and list contents
+    if os.path.exists(db_path):
+        st.write(f"🔍 DEBUG: Contents of {db_path}:")
+        try:
+            contents = os.listdir(db_path)
+            for item in contents:
+                st.write(f"  - {item}")
+        except Exception as e:
+            st.write(f"🔍 DEBUG: Error listing directory contents: {e}")
+    else:
+        st.write("🔍 DEBUG: Vector DB directory does not exist!")
+        # Check parent directory
+        parent_dir = os.path.dirname(db_path)
+        st.write(f"🔍 DEBUG: Parent directory '{parent_dir}' exists: {os.path.exists(parent_dir)}")
+        if os.path.exists(parent_dir):
+            st.write(f"🔍 DEBUG: Contents of parent directory:")
+            try:
+                contents = os.listdir(parent_dir)
+                for item in contents:
+                    st.write(f"  - {item}")
+            except Exception as e:
+                st.write(f"🔍 DEBUG: Error listing parent directory: {e}")
 
     # Enhanced slate-themed CSS styling
     st.markdown("""
@@ -416,15 +442,23 @@ def main():
     </style>
     """, unsafe_allow_html=True)
 
-    # Cache the vector store loading
-    @st.cache_resource
+    # Function to load vector store with debug info
     def load_vector_store():
+        st.write("🔍 DEBUG: Starting vector store loading...")
         try:
+            st.write("🔍 DEBUG: Initializing HuggingFace embeddings...")
             embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+            st.write("🔍 DEBUG: Embeddings initialized successfully")
+            
+            st.write(f"🔍 DEBUG: Loading FAISS from path: {db_path}")
             db = FAISS.load_local(db_path, embeddings=embeddings, allow_dangerous_deserialization=True)
+            st.write("🔍 DEBUG: FAISS vector store loaded successfully!")
+            st.write(f"🔍 DEBUG: Vector store object: {type(db)}")
             return db
         except Exception as e:
-            st.write(f"Loading from: {db_path}")
+            st.write(f"🔍 DEBUG: Exception during vector store loading: {type(e).__name__}")
+            st.write(f"🔍 DEBUG: Exception message: {str(e)}")
+            st.write(f"🔍 DEBUG: Loading attempted from: {db_path}")
             st.error(f"Failed to load vector store: {str(e)}")
             return None
 
@@ -450,12 +484,17 @@ def main():
             input_variables=["context", "question"]
         )
 
-    # HF token
+    # HF token - DEBUG
     HF_TOKEN = os.getenv("HF_TOKEN")
+    st.write(f"🔍 DEBUG: HF_TOKEN exists: {bool(HF_TOKEN)}")
+    if HF_TOKEN:
+        st.write(f"🔍 DEBUG: HF_TOKEN length: {len(HF_TOKEN)}")
+    else:
+        st.write("🔍 DEBUG: HF_TOKEN is None or empty!")
 
-    # LLM Endpoint config
-    @st.cache_resource
+    # LLM Endpoint config with debug
     def get_hf_endpoint(hf_rep_id):
+        st.write(f"🔍 DEBUG: Initializing HuggingFace endpoint with repo_id: {hf_rep_id}")
         try:
             llm = HuggingFaceEndpoint(
                 repo_id=hf_rep_id,
@@ -464,8 +503,12 @@ def main():
                 max_new_tokens=1024,
                 huggingfacehub_api_token=HF_TOKEN
             )
+            st.write("🔍 DEBUG: HuggingFace endpoint initialized successfully!")
+            st.write(f"🔍 DEBUG: LLM object type: {type(llm)}")
             return llm
         except Exception as e:
+            st.write(f"🔍 DEBUG: Exception during LLM initialization: {type(e).__name__}")
+            st.write(f"🔍 DEBUG: Exception message: {str(e)}")
             st.error(f"Failed to initialize LLM: {str(e)}")
             return None
 
@@ -593,6 +636,8 @@ def main():
     
     # Process query when submitted
     if submit_button and user_query.strip():
+        st.write(f"🔍 DEBUG: Processing query: '{user_query}'")
+        
         # Add user message to session state
         st.session_state.messages.append({'role': 'user', 'content': user_query})
         
@@ -610,18 +655,26 @@ def main():
         """, unsafe_allow_html=True)
         
         try:
-            # Load vector store
+            # Load vector store with debug
+            st.write("🔍 DEBUG: About to load vector store...")
             db = load_vector_store()
+            st.write(f"🔍 DEBUG: Vector store loading result: {db is not None}")
+            
             if db is None:
                 error_msg = "❌ Medical database unavailable. Please ensure the pathology knowledge base is properly loaded."
                 st.error(error_msg)
                 st.session_state.messages.append({'role': 'assistant', 'content': error_msg})
                 st.rerun()
             
+            st.write("🔍 DEBUG: Setting up retriever...")
             # Setup retrieval
             retriever = db.as_retriever(search_kwargs={"k": 4})
+            st.write(f"🔍 DEBUG: Retriever created: {type(retriever)}")
+            
             hf_rep_id = "mistralai/Mistral-7B-Instruct-v0.3"
+            st.write("🔍 DEBUG: About to initialize LLM...")
             llm = get_hf_endpoint(hf_rep_id)
+            st.write(f"🔍 DEBUG: LLM initialization result: {llm is not None}")
             
             if llm is None:
                 error_msg = "❌ AI diagnostic engine initialization failed. Please verify HuggingFace authentication."
@@ -629,9 +682,12 @@ def main():
                 st.session_state.messages.append({'role': 'assistant', 'content': error_msg})
                 st.rerun()
             
+            st.write("🔍 DEBUG: Creating prompt template...")
             prompt = get_prompt(PROMPT_TEMPLATE)
+            st.write(f"🔍 DEBUG: Prompt template created: {type(prompt)}")
             
             # Setup RetrievalQA chain
+            st.write("🔍 DEBUG: Setting up RetrievalQA chain...")
             retrieval_qa = RetrievalQA.from_chain_type(
                 llm=llm,
                 chain_type="stuff",
@@ -639,23 +695,37 @@ def main():
                 return_source_documents=True,
                 chain_type_kwargs={"prompt": prompt}
             )
+            st.write(f"🔍 DEBUG: RetrievalQA chain created: {type(retrieval_qa)}")
             
             # Get response
+            st.write("🔍 DEBUG: Invoking retrieval chain...")
             response = retrieval_qa.invoke({"query": user_query})
+            st.write(f"🔍 DEBUG: Response received: {type(response)}")
+            st.write(f"🔍 DEBUG: Response keys: {response.keys() if isinstance(response, dict) else 'Not a dict'}")
             
             result = response["result"]
             source_documents = response["source_documents"]
+            st.write(f"🔍 DEBUG: Result length: {len(result) if result else 0}")
+            st.write(f"🔍 DEBUG: Number of source documents: {len(source_documents) if source_documents else 0}")
             
             # Format full response
             original_res = result + "\n\nSource Docs:\n" + str(source_documents)
+            st.write(f"🔍 DEBUG: Full response length: {len(original_res)}")
             
             # Add assistant message to session state
             st.session_state.messages.append({'role': 'assistant', 'content': original_res})
+            st.write("🔍 DEBUG: Response added to session state, rerunning...")
             
             # Rerun to display the new messages
             st.rerun()
             
         except Exception as e:
+            st.write(f"🔍 DEBUG: Exception in main processing: {type(e).__name__}")
+            st.write(f"🔍 DEBUG: Exception details: {str(e)}")
+            import traceback
+            st.write(f"🔍 DEBUG: Full traceback:")
+            st.code(traceback.format_exc())
+            
             error_msg = f"❌ Diagnostic analysis error: {str(e)}"
             st.error(error_msg)
             st.session_state.messages.append({'role': 'assistant', 'content': error_msg})
