@@ -14,7 +14,7 @@ st.set_page_config(
 )
 
 # Vector DB path
-db_path = "faiss_database"
+db_path = "."
 st.write("Current dir:", os.getcwd())
 st.write("Files in dir:", os.listdir("faiss_database"))
 # Enhanced slate-themed CSS styling
