@@ -8,4 +8,5 @@ huggingface_hub
 numpy
 pandas
 streamlit
-gdown
+--no-deps  # Ignore Pipfile.lock for these
+gdown>=4.7.0
