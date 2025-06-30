@@ -14,7 +14,7 @@ st.set_page_config(
 )
 
 # Vector DB path
-db_path = "vector_store/faiss_database"
+db_path = "faiss_database"
 
 # Enhanced slate-themed CSS styling
 st.markdown("""
