@@ -6,8 +6,6 @@ from langchain.chains import RetrievalQA
 from langchain_community.vectorstores import FAISS
 from datetime import datetime
 
-
-
 # Configure page
 st.set_page_config(
     page_title="PathoCare AI - Medical Pathology Assistant", 
@@ -16,19 +14,7 @@ st.set_page_config(
 )
 
 # Vector DB path
-FAISS_FILE_ID = st.secrets["vector_store"]["faiss_file_id"]
-PKL_FILE_ID = st.secrets["vector_store"]["pkl_file_id"]
-
-
-@st.cache_resource
-def download_faiss_index():
-    """Download FAISS index files from Google Drive using secrets"""
-    os.makedirs("vector_store/faiss_database", exist_ok=True)
-    
-    faiss_path = "vector_store/faiss_database/index.faiss"
-    pkl_path = "vector_store/faiss_database/index.pkl"
-    
-
+db_path = "vector_store/faiss_database"
 
 # Enhanced slate-themed CSS styling
 st.markdown("""
@@ -433,31 +419,12 @@ st.markdown("""
 @st.cache_resource
 def load_vector_store():
     try:
-        os.makedirs("vector_store/faiss_database", exist_ok=True)
-        faiss_path = "vector_store/faiss_database/index.faiss"
-        pkl_path = "vector_store/faiss_database/index.pkl"
-       
-        if not os.path.exists(faiss_path):
-            download_file(FAISS_FILE_ID, faiss_path)
-        if not os.path.exists(pkl_path):
-            download_file(PKL_FILE_ID, pkl_path)
-
         embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-        return FAISS.load_local(
-            "vector_store/faiss_database",
-            embeddings=embeddings,
-            allow_dangerous_deserialization=True
-        )
+        db = FAISS.load_local(db_path,embeddings=embeddings, allow_dangerous_deserialization=True)
+        return db
     except Exception as e:
-        st.error(f"""
-        ❌ Failed to load medical knowledge base:
-        {str(e)}
-        
-        Please ensure:
-        1. Google Drive files are shared publicly
-        2. File IDs are correct
-        3. Internet connection is stable
-        """)
+        st.write(f"Loading from: {db_path}")
+        st.error(f"Failed to load vector store: {str(e)}")
         return None
 
 # Prompt template
@@ -653,10 +620,6 @@ def main():
         try:
             # Load vector store
             db = load_vector_store()
-            st.sidebar.write("FAISS ID:", FAISS_FILE_ID)
-            st.sidebar.write("PKL ID:", PKL_FILE_ID)
-            file_ok = os.path.exists(faiss_path) and os.path.getsize(faiss_path) > 1000000  # >1MB
-            st.sidebar.write("FAISS valid:", file_ok)
             if db is None:
                 error_msg = "❌ Medical database unavailable. Please ensure the pathology knowledge base is properly loaded."
                 st.error(error_msg)
