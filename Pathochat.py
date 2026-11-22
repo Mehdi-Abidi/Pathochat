@@ -444,13 +444,11 @@ def load_vector_store():
         return None
 
 # Prompt template
-PROMPT_TEMPLATE = """
-You are a focused assistant. Your task is to generate accurate answers using only the context provided.
-- Do not include external knowledge.
-- Do not speculate. If the context lacks the answer, respond with: "I don't know."
-- No fluff, greetings, or commentary — jump straight to the answer.
+PROMPT_TEMPLATE = """You are PathoChat, a pathology tutor. Answer the question below.
 
-[Context]
+Reference passages from Robbins & Cotran and Pathoma follow. Use them when they are relevant. When they do not settle the question, rely on standard pathology knowledge and say that the passages did not cover it.
+
+[Passages]
 {context}
 
 [Question]
