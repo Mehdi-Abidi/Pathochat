@@ -77,6 +77,17 @@ Your browser should open automatically at:
 
 ---
 
+## Live chat
+
+The project page has a chat box with voice input. It talks to a small server in [server/](server/), deployed as a Vercel function at https://pathochat-api.vercel.app.
+
+- `/ask` embeds the question, finds the five closest passages and asks the model. The sentence encoder is written in plain numpy (`server/pathochat/encoder.py`), so the server needs no torch. On 104 test queries its vectors matched the original MiniLM model to a cosine of 0.999999, and the top five passages were the same in 103.
+- `/transcribe` turns a spoken question into text with Whisper.
+- If the main model is rate limited, the server answers with a fallback model and says which one it used.
+- The model key lives in the server's environment. The page never sees it.
+
+To run the server on your machine, build its data once with `python server/build_data.py`, set `LLM_API_KEY`, and start `python server/local.py`.
+
 ## Evaluation (November 2026)
 
 PathoChat was scored on 100 held-out pathology questions from MedMCQA. The original setup (Mistral-7B with a context-only prompt) answered 59 correctly. The current setup (Qwen3.8-27B with a prompt that may fall back on standard pathology knowledge) answers 86. The same model without retrieval answers 91, so on exam questions the gain comes from the model and the prompt, and weak passages can mislead a strong model. The method, all results and the script are in [evaluation/](evaluation/README.md).
