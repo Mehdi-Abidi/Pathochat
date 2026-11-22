@@ -1,0 +1,54 @@
+name: Site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+    inputs:
+      refresh_examples:
+        description: "Regenerate the example answers with the model"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        if: ${{ inputs.refresh_examples }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        if: ${{ inputs.refresh_examples }}
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r site/requirements.txt
+      - name: Regenerate the example answers
+        if: ${{ inputs.refresh_examples }}
+        env:
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+        run: python site/build_examples.py
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
