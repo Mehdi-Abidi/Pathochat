@@ -1,0 +1,10 @@
+{
+  "functions": {
+    "api/index.py": { "maxDuration": 60, "memory": 1024 }
+  },
+  "rewrites": [
+    { "source": "/health", "destination": "/api/index?route=health" },
+    { "source": "/ask", "destination": "/api/index?route=ask" },
+    { "source": "/transcribe", "destination": "/api/index?route=transcribe" }
+  ]
+}

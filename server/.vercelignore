@@ -1,0 +1,4 @@
+__pycache__/
+build_data.py
+local.py
+.gitignore
