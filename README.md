@@ -1,7 +1,7 @@
 # Pathochat – AI-powered Medical Chat Assistant
 
 A conversational AI tool designed to answer pathology related questions using vector databases, LLMs, and PDF-based knowledge sources.
-Try it at : https://exemplary-heart-production.up.railway.app/ 
+Project page with saved answers, the evaluation and a question explorer: https://mehdi-abidi.github.io/Pathochat/
 
 ---
 
