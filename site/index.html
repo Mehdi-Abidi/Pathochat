@@ -67,7 +67,11 @@
         <button class="textbutton" id="clear" type="button">New chat</button>
       </div>
       <div class="messages" id="messages" aria-live="polite"></div>
-      <div class="suggest" id="suggest" aria-label="Suggested questions"></div>
+      <div class="suggest-wrap" id="suggest-wrap">
+        <button class="nudge left" type="button" data-d="-1" aria-label="Show earlier suggestions" hidden>‹</button>
+        <div class="suggest" id="suggest" aria-label="Suggested questions"></div>
+        <button class="nudge right" type="button" data-d="1" aria-label="Show more suggestions">›</button>
+      </div>
       <form class="composer" id="composer">
         <textarea id="input" rows="1" maxlength="600" placeholder="Ask about a disease, a cell or a mechanism" aria-label="Your question"></textarea>
         <button class="round" id="mic" type="button" aria-label="Speak your question" aria-pressed="false">

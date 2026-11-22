@@ -341,6 +341,27 @@ function chat(ex) {
     const b = ev.target.closest("button");
     if (b) send(ex.examples[Number(b.dataset.i)].question);
   });
+  const strip = document.getElementById("suggest-wrap");
+  const nudges = strip.querySelectorAll(".nudge");
+  const edges = () => {
+    const max = chips.scrollWidth - chips.clientWidth;
+    const left = chips.scrollLeft > 4;
+    const right = chips.scrollLeft < max - 4;
+    strip.dataset.left = left ? "1" : "0";
+    strip.dataset.right = right ? "1" : "0";
+    nudges[0].hidden = !left;
+    nudges[1].hidden = !right;
+  };
+  nudges.forEach((b) => b.addEventListener("click", () => chips.scrollBy({ left: Number(b.dataset.d) * Math.max(240, chips.clientWidth * 0.7), behavior: reduce ? "auto" : "smooth" })));
+  chips.addEventListener("scroll", edges, { passive: true });
+  chips.addEventListener("wheel", (ev) => {
+    if (Math.abs(ev.deltaY) > Math.abs(ev.deltaX)) {
+      chips.scrollLeft += ev.deltaY;
+      ev.preventDefault();
+    }
+  }, { passive: false });
+  window.addEventListener("resize", edges);
+  edges();
 
   greet();
   status("wait", "Checking the server");
