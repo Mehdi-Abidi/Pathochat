@@ -79,33 +79,274 @@ function hero(data) {
     .join("");
 }
 
+const API = (new URLSearchParams(location.search).get("api") || window.PATHOCHAT_API || "").replace(/\/$/, "");
+const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const wait = (ms) => new Promise((done) => setTimeout(done, ms));
+
 function renderAnswer(text) {
   if (!window.marked) return `<p style="white-space:pre-wrap">${esc(text)}</p>`;
   const html = window.marked.parse(text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"));
   return html.replace(/<table>/g, '<div class="table-wrap"><table>').replace(/<\/table>/g, "</table></div>");
 }
 
-function demo(ex) {
-  document.getElementById("demo-model").textContent = ex.model.split("/").pop();
-  const list = document.getElementById("questions");
-  const chat = document.getElementById("chat");
-  const show = (i) => {
-    const e = ex.examples[i];
-    list.querySelectorAll("button").forEach((b, j) => b.setAttribute("aria-selected", j === i ? "true" : "false"));
-    chat.innerHTML = `<div class="fade">
-      <div class="chat-meta"><span class="tag">${esc(ex.model.split("/").pop())}</span><span class="tag">${ex.passages} passages retrieved</span><span class="tag">saved ${esc(ex.generated)}</span></div>
-      <p class="bubble-q">${esc(e.question)}</p>
-      <div class="answer">${renderAnswer(e.answer)}</div>
-      <details class="sources"><summary>The ${e.sources.length} passages it was given</summary>
-        ${e.sources.map((s) => `<div class="source"><div class="source-head">${esc(s.book)} · PDF page ${s.page}</div><p>“${esc(s.excerpt)}…”</p></div>`).join("")}
-      </details></div>`;
+function spoken(text) {
+  return text.replace(/\|[\s:|-]+\|/g, " ").replace(/[#*_`|>]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function chat(ex) {
+  const box = document.getElementById("messages");
+  const input = document.getElementById("input");
+  const form = document.getElementById("composer");
+  const mic = document.getElementById("mic");
+  const hint = document.getElementById("hint");
+  const api = document.getElementById("api");
+  const apiText = document.getElementById("api-text");
+  const saved = new Map(ex.examples.map((e) => [e.question.toLowerCase(), e]));
+  const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let live = false;
+  let busy = false;
+  let rec = null;
+  let recorder = null;
+
+  const status = (state, text) => {
+    api.dataset.state = state;
+    apiText.textContent = text;
   };
-  list.innerHTML = ex.examples.map((e, i) => `<button class="q-button" type="button" role="tab" data-i="${i}">${esc(e.question)}</button>`).join("");
-  list.addEventListener("click", (ev) => {
-    const b = ev.target.closest("button");
-    if (b) show(Number(b.dataset.i));
+
+  const grow = () => {
+    input.style.height = "auto";
+    input.style.height = Math.min(160, input.scrollHeight) + "px";
+  };
+
+  const add = (role, html) => {
+    const node = document.createElement("div");
+    node.className = "msg " + role + " fade";
+    node.innerHTML = html;
+    box.appendChild(node);
+    box.scrollTop = box.scrollHeight;
+    return node;
+  };
+
+  const greet = () => {
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    box.innerHTML = "";
+    add("bot", '<div class="answer"><p>Ask me about a disease, a cell or a mechanism. I search Robbins &amp; Cotran and Pathoma, answer from what I find, and show you the passages I was given.</p></div>');
+  };
+
+  const finish = (node, data, note) => {
+    const sources = data.sources.map((s) => `<div class="source"><div class="source-head">${esc(s.book)} · PDF page ${s.page}</div><p>“${esc(s.excerpt)}…”</p></div>`).join("");
+    node.innerHTML = `<div class="chat-meta"><span class="tag">${esc(data.model.split("/").pop())}</span><span class="tag">${data.sources.length} passages retrieved</span><span class="tag">${note}</span></div>
+      <div class="answer"></div>
+      <details class="sources"><summary>The ${data.sources.length} passages it was given</summary>${sources}</details>
+      ${window.speechSynthesis ? '<div class="msg-actions"><button type="button" class="textbutton listen">Listen to this answer</button></div>' : ""}`;
+    const target = node.querySelector(".answer");
+    const text = data.answer;
+    const steps = reduce ? 1 : 22;
+    let i = 0;
+    const tick = () => {
+      i++;
+      const cut = i >= steps ? text.length : Math.max(0, text.lastIndexOf(" ", Math.floor((text.length * i) / steps)));
+      target.innerHTML = renderAnswer(text.slice(0, cut));
+      if (i < steps) setTimeout(tick, 28);
+    };
+    tick();
+    const listen = node.querySelector(".listen");
+    if (listen) {
+      listen.addEventListener("click", () => {
+        const synth = window.speechSynthesis;
+        if (synth.speaking) {
+          synth.cancel();
+          listen.textContent = "Listen to this answer";
+          return;
+        }
+        const voice = new SpeechSynthesisUtterance(spoken(text));
+        voice.lang = "en-US";
+        voice.rate = 1.02;
+        voice.onend = () => (listen.textContent = "Listen to this answer");
+        listen.textContent = "Stop";
+        synth.speak(voice);
+      });
+    }
+  };
+
+  const send = async (raw) => {
+    const question = String(raw).trim().replace(/\s+/g, " ");
+    if (!question || busy) return;
+    busy = true;
+    form.classList.add("busy");
+    input.value = "";
+    grow();
+    hint.textContent = "";
+    const asked = add("user", `<p class="bubble-q">${esc(question)}</p>`);
+    const node = add("bot", '<div class="thinking"><span></span><span></span><span></span><em>Searching 23,814 passages</em></div>');
+    const stage = setTimeout(() => {
+      const em = node.querySelector("em");
+      if (em) em.textContent = "Writing the answer";
+    }, 1300);
+    const hit = saved.get(question.toLowerCase());
+    const fromSaved = () => finish(node, { answer: hit.answer, sources: hit.sources, model: ex.model }, "saved answer");
+    try {
+      if (live) {
+        const r = await fetch(API + "/ask", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question }) });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || "The server did not answer.");
+        finish(node, data, "live");
+      } else if (hit) {
+        await wait(reduce ? 0 : 650);
+        fromSaved();
+      } else {
+        throw new Error("The live server is not connected right now, so I can only answer the suggested questions below.");
+      }
+    } catch (err) {
+      if (hit) fromSaved();
+      else node.innerHTML = `<div class="answer"><p class="problem">${esc(err instanceof TypeError ? "The server could not be reached. Try again in a moment." : err.message)}</p></div>`;
+    }
+    clearTimeout(stage);
+    busy = false;
+    form.classList.remove("busy");
+    box.scrollTop = asked.offsetTop - 10;
+  };
+
+  const check = async (tries) => {
+    if (!API) {
+      status("off", "Saved answers only");
+      return;
+    }
+    try {
+      const r = await fetch(API + "/health", { signal: AbortSignal.timeout(25000) });
+      if (!r.ok) throw new Error("down");
+      const d = await r.json();
+      live = true;
+      status("live", "Live · " + d.model.split("/").pop());
+    } catch (e) {
+      if (tries > 0) {
+        status("wait", "Waking the server");
+        await wait(3000);
+        return check(tries - 1);
+      }
+      status("off", "Server offline · saved answers only");
+    }
+  };
+
+  const micOn = (on) => {
+    mic.setAttribute("aria-pressed", on ? "true" : "false");
+  };
+
+  const dictate = () => {
+    rec = new Speech();
+    rec.lang = "en-US";
+    rec.interimResults = true;
+    rec.onresult = (ev) => {
+      input.value = Array.from(ev.results).map((r) => r[0].transcript).join("");
+      grow();
+    };
+    rec.onerror = (ev) => {
+      hint.textContent = ev.error === "not-allowed" ? "Allow the microphone in your browser to speak a question." : "I could not hear that. Try again.";
+    };
+    rec.onend = () => {
+      micOn(false);
+      rec = null;
+      if (input.value.trim()) send(input.value);
+    };
+    micOn(true);
+    hint.textContent = "Listening. Ask your question.";
+    rec.start();
+  };
+
+  const record = async () => {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const chunks = [];
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 512;
+    ctx.createMediaStreamSource(stream).connect(analyser);
+    const wave = new Uint8Array(analyser.fftSize);
+    let spoke = false;
+    let quiet = 0;
+    recorder = new MediaRecorder(stream);
+    const watch = setInterval(() => {
+      analyser.getByteTimeDomainData(wave);
+      let peak = 0;
+      for (const v of wave) peak = Math.max(peak, Math.abs(v - 128));
+      if (peak > 10) {
+        spoke = true;
+        quiet = 0;
+      } else if (spoke && (quiet += 100) >= 1500 && recorder && recorder.state === "recording") {
+        recorder.stop();
+      }
+    }, 100);
+    const limit = setTimeout(() => recorder && recorder.state === "recording" && recorder.stop(), 25000);
+    recorder.ondataavailable = (e) => chunks.push(e.data);
+    recorder.onstop = async () => {
+      clearInterval(watch);
+      clearTimeout(limit);
+      stream.getTracks().forEach((t) => t.stop());
+      ctx.close();
+      const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+      recorder = null;
+      micOn(false);
+      if (!spoke) {
+        hint.textContent = "I could not hear a question. Try again.";
+        return;
+      }
+      hint.textContent = "Transcribing your question.";
+      try {
+        const r = await fetch(API + "/transcribe", { method: "POST", headers: { "Content-Type": blob.type }, body: blob });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.detail);
+        hint.textContent = "";
+        if (d.text) send(d.text);
+        else hint.textContent = "I could not hear a question. Try again.";
+      } catch (e) {
+        hint.textContent = e.message || "The recording could not be transcribed. Try again.";
+      }
+    };
+    recorder.start();
+    micOn(true);
+    hint.textContent = "Listening. Ask your question, then pause.";
+  };
+
+  mic.addEventListener("click", () => {
+    if (rec) return rec.stop();
+    if (recorder) return recorder.state === "recording" && recorder.stop();
+    if (busy) return;
+    if (live && navigator.mediaDevices && window.MediaRecorder) {
+      record().catch(() => {
+        micOn(false);
+        hint.textContent = "Allow the microphone in your browser to speak a question.";
+      });
+    } else if (Speech) {
+      dictate();
+    } else {
+      hint.textContent = "Voice input needs the live server, or Chrome, Edge or Safari.";
+    }
   });
-  show(0);
+
+  form.addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    send(input.value);
+  });
+  input.addEventListener("input", grow);
+  input.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter" && !ev.shiftKey) {
+      ev.preventDefault();
+      send(input.value);
+    }
+  });
+  document.getElementById("clear").addEventListener("click", greet);
+  const chips = document.getElementById("suggest");
+  chips.innerHTML = ex.examples.map((e, i) => `<button class="chipbutton" type="button" data-i="${i}">${esc(e.question)}</button>`).join("");
+  chips.addEventListener("click", (ev) => {
+    const b = ev.target.closest("button");
+    if (b) send(ex.examples[Number(b.dataset.i)].question);
+  });
+
+  greet();
+  status("wait", "Checking the server");
+  check(8).then(() => {
+    const m = location.hash.match(/^#ask=(.+)/);
+    if (m) send(decodeURIComponent(m[1]));
+  });
 }
 
 function tiles(data) {
@@ -279,7 +520,7 @@ tissue();
 Promise.all([fetch("data/evaluation.json").then((r) => r.json()), fetch("data/examples.json").then((r) => r.json())])
   .then(([data, ex]) => {
     hero(data);
-    demo(ex);
+    chat(ex);
     tiles(data);
     explorer(data);
     const rank = { kept: 0, fixed: 1, broken: 2, missed: 3 };
