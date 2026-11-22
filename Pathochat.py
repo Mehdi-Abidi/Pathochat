@@ -1,8 +1,8 @@
 import os
+import requests
 import streamlit as st
 from langchain_huggingface import HuggingFaceEndpoint, HuggingFaceEmbeddings
 from langchain_core.prompts import PromptTemplate
-from langchain.chains import RetrievalQA
 from langchain_community.vectorstores import FAISS
 from datetime import datetime
 
@@ -482,6 +482,37 @@ def get_hf_endpoint(hf_rep_id):
         st.error(f"Failed to initialize LLM: {str(e)}")
         return None
 
+LLM_API_KEY = os.getenv("LLM_API_KEY")
+LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.groq.com/openai/v1")
+LLM_MODEL = os.getenv("LLM_MODEL", "qwen/qwen3.8-27b")
+HF_MODEL = "mistralai/Mistral-7B-Instruct-v0.3"
+
+
+def model_label():
+    return LLM_MODEL.split("/")[-1] if LLM_API_KEY else "Mistral-7B"
+
+
+def ask_llm(prompt_text):
+    if LLM_API_KEY:
+        response = requests.post(
+            LLM_BASE_URL.rstrip("/") + "/chat/completions",
+            headers={"Authorization": "Bearer " + LLM_API_KEY},
+            json={
+                "model": LLM_MODEL,
+                "messages": [{"role": "user", "content": prompt_text}],
+                "temperature": 0,
+                "max_tokens": 1500,
+            },
+            timeout=120,
+        )
+        response.raise_for_status()
+        return response.json()["choices"][0]["message"]["content"]
+    llm = get_hf_endpoint(HF_MODEL)
+    if llm is None:
+        raise RuntimeError("the Hugging Face endpoint could not be initialised")
+    return llm.invoke(prompt_text)
+
+
 def display_chat_message(role, content):
     """Display a chat message with enhanced slate styling"""
     if role == "user":
@@ -542,12 +573,12 @@ def main():
         """, unsafe_allow_html=True)
     
     with col2:
-        st.markdown("""
+        st.markdown(f"""
         <div class="status-card">
             <div class="status-icon">🧠</div>
             <div class="status-title">AI Model</div>
-            <div class="status-value">Mistral-7B</div>
-            <small style="color: #94a3b8;">Medical Instruct v0.3</small>
+            <div class="status-value">{model_label()}</div>
+            <small style="color: #94a3b8;">Retrieval over Robbins and Pathoma</small>
         </div>
         """, unsafe_allow_html=True)
     
@@ -640,33 +671,10 @@ def main():
                 st.session_state.messages.append({'role': 'assistant', 'content': error_msg})
                 st.rerun()
             
-            # Setup retrieval
-            retriever = db.as_retriever(search_kwargs={"k": 4})
-            hf_rep_id = "mistralai/Mistral-7B-Instruct-v0.3"
-            llm = get_hf_endpoint(hf_rep_id)
-            
-            if llm is None:
-                error_msg = "❌ AI diagnostic engine initialization failed. Please verify HuggingFace authentication."
-                st.error(error_msg)
-                st.session_state.messages.append({'role': 'assistant', 'content': error_msg})
-                st.rerun()
-            
+            source_documents = db.similarity_search(user_query, k=5)
+            context = "\n\n".join(doc.page_content for doc in source_documents)
             prompt = get_prompt(PROMPT_TEMPLATE)
-            
-            # Setup RetrievalQA chain
-            retrieval_qa = RetrievalQA.from_chain_type(
-                llm=llm,
-                chain_type="stuff",
-                retriever=retriever,
-                return_source_documents=True,
-                chain_type_kwargs={"prompt": prompt}
-            )
-            
-            # Get response
-            response = retrieval_qa.invoke({"query": user_query})
-            
-            result = response["result"]
-            source_documents = response["source_documents"]
+            result = ask_llm(prompt.format(context=context, question=user_query))
             
             # Format full response
             original_res = result + "\n\nSource Docs:\n" + str(source_documents)
