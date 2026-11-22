@@ -1,10 +1,10 @@
 const NS = "http://www.w3.org/2000/svg";
 const tooltip = document.getElementById("tooltip");
 const CATS = {
-  kept: { label: "Right both times", color: "var(--s1)" },
-  fixed: { label: "Fixed by the new build", color: "var(--s3)" },
-  broken: { label: "Broken by the new build", color: "var(--s2)" },
-  missed: { label: "Wrong both times", color: "var(--neutral)", hollow: true },
+  kept: { label: "Right both times", short: "Right twice", color: "var(--s1)" },
+  fixed: { label: "Fixed by the new build", short: "Fixed", color: "var(--s3)" },
+  broken: { label: "Broken by the new build", short: "Broken", color: "var(--s2)" },
+  missed: { label: "Wrong both times", short: "Wrong twice", color: "var(--neutral)", hollow: true },
 };
 
 function el(tag, attrs, parent) {
@@ -50,19 +50,20 @@ function keyDot(cat) {
   return `<span class="key${c.hollow ? " hollow" : ""}" style="background:${c.color}"></span>`;
 }
 
-function tissue() {
-  const svg = document.getElementById("tissue");
+function tissue(id, start, left) {
+  const svg = document.getElementById(id);
+  if (!svg) return;
   const w = 1200;
   const h = 700;
   svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
   svg.setAttribute("preserveAspectRatio", "xMidYMid slice");
-  let seed = 7;
+  let seed = start;
   const rnd = () => {
     seed = (seed * 16807) % 2147483647;
     return seed / 2147483647;
   };
   for (let i = 0; i < 90; i++) {
-    const x = w * (0.28 + 0.78 * rnd());
+    const x = w * (left + (1.06 - left) * rnd());
     const y = h * rnd();
     const r = 12 + rnd() * 26;
     el("circle", { cx: x, cy: y, r, fill: "#e7a1bb", opacity: 0.08 + rnd() * 0.12 }, svg);
@@ -434,14 +435,12 @@ function drawUnits(data, order) {
   });
 }
 
-function openQuestion(i) {
-  setFilter("all", true);
-  const item = document.getElementById("q-" + i);
-  item.open = true;
-  item.scrollIntoView({ block: "center" });
-}
+let selectQuestion = () => {};
 
-let setFilter = () => {};
+function openQuestion(i) {
+  selectQuestion(i);
+  document.getElementById("explorer").scrollIntoView({ block: "start" });
+}
 
 function explorer(data) {
   const qs = data.questions;
@@ -454,10 +453,23 @@ function explorer(data) {
     ["hurt", "Retrieval hurt", hurt],
   ];
   const bar = document.getElementById("filters");
-  bar.innerHTML = filters.map(([id, label, fn]) => `<button class="filter" type="button" data-f="${id}" aria-pressed="${id === "all"}">${label}<b>${qs.filter(fn).length}</b></button>`).join("");
-  const pick = (name, cat) => `<span class="pick">${cat ? `<span class="key" style="background:${cat}"></span>` : ""}${name}</span>`;
-  document.getElementById("qlist").innerHTML = qs.map((q, i) => {
+  const tray = document.getElementById("tray");
+  const view = document.getElementById("specimen");
+  let active = "all";
+  let current = 0;
+
+  const matches = () => {
+    const test = filters.find((f) => f[0] === active)[2];
+    return qs.map((q, i) => i).filter((i) => test(qs[i]));
+  };
+
+  const pick = (name, color) => `<span class="pick">${color ? `<span class="key" style="background:${color}"></span>` : ""}${name}</span>`;
+
+  const render = () => {
+    const q = qs[current];
     const cat = category(q);
+    const list = matches();
+    const pos = list.indexOf(current);
     const opts = q.options.map((o, j) => {
       const letter = "ABCD"[j];
       const picks = [];
@@ -467,37 +479,91 @@ function explorer(data) {
       if (q.plain === letter) picks.push(pick("no retrieval", ""));
       return `<li class="${q.gold === letter ? "gold" : ""}"><span class="opt-letter">${letter}</span><span>${esc(o)}</span><span class="picks">${picks.join("")}</span></li>`;
     }).join("");
-    const silent = "ABCD".includes(q.old) ? "" : `<p class="reason">The first build gave no usable answer here.</p>`;
-    return `<details class="qitem" id="q-${i}" data-cat="${cat}" data-hurt="${hurt(q)}">
-      <summary><span class="q-num">${String(i + 1).padStart(3, "0")}</span><span class="q-text">${esc(q.question)}</span><span class="status">${keyDot(cat)}${CATS[cat].label}</span></summary>
-      <div class="q-body"><ul class="options">${opts}</ul>${silent}<p class="reason"><b>Why the current build chose ${q.new}:</b> ${esc(q.reason)}</p></div>
-    </details>`;
-  }).join("");
-  const more = document.getElementById("more");
-  let expanded = false;
-  let current = "all";
-  setFilter = (id, showAll) => {
-    current = id;
-    if (showAll) expanded = true;
-    bar.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.f === id ? "true" : "false"));
-    let shown = 0;
-    let total = 0;
-    document.querySelectorAll(".qitem").forEach((d) => {
-      const on = id === "all" || (id === "hurt" ? d.dataset.hurt === "true" : d.dataset.cat === id);
-      if (on) total++;
-      const visible = on && (expanded || shown < 12);
-      if (visible) shown++;
-      d.style.display = visible ? "" : "none";
+    const silent = "ABCD".includes(q.old) ? "" : '<p class="reason">The first build gave no usable answer here.</p>';
+    view.innerHTML = `<div class="slide-label"><span>Specimen ${String(current + 1).padStart(3, "0")}</span><span>${CATS[cat].short}</span><span>MedMCQA</span></div>
+      <div class="slide-body fade">
+        <p class="status">${keyDot(cat)}${CATS[cat].label}${hurt(q) ? " · retrieval hurt" : ""}</p>
+        <h3 class="specimen-q">${esc(q.question)}</h3>
+        <ul class="options">${opts}</ul>
+        ${silent}
+        <p class="reason"><b>Why the current build chose ${esc(q.new)}:</b> ${esc(q.reason)}</p>
+        <div class="stepper">
+          <button type="button" class="step" data-d="-1" aria-label="Previous question">←</button>
+          <span>${pos >= 0 ? pos + 1 : 1} of ${list.length}</span>
+          <button type="button" class="step" data-d="1" aria-label="Next question">→</button>
+        </div>
+      </div>`;
+    tray.querySelectorAll(".well").forEach((w) => {
+      const i = Number(w.dataset.i);
+      w.setAttribute("aria-current", i === current ? "true" : "false");
+      w.classList.toggle("dim", !list.includes(i));
     });
-    more.hidden = shown >= total;
-    more.textContent = `Show all ${total} questions`;
   };
-  more.addEventListener("click", () => setFilter(current, true));
-  setFilter("all");
+
+  const step = (d) => {
+    const list = matches();
+    if (!list.length) return;
+    const pos = list.indexOf(current);
+    current = list[(pos + d + list.length) % list.length];
+    render();
+  };
+
+  const setFilter = (id) => {
+    active = id;
+    bar.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.f === id ? "true" : "false"));
+    const list = matches();
+    if (!list.includes(current)) current = list[0];
+    render();
+  };
+
+  selectQuestion = (i) => {
+    active = "all";
+    bar.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.f === "all" ? "true" : "false"));
+    current = i;
+    render();
+  };
+
+  bar.innerHTML = filters.map(([id, label, fn]) => `<button class="filter" type="button" data-f="${id}" aria-pressed="${id === "all"}">${label}<b>${qs.filter(fn).length}</b></button>`).join("");
+  tray.innerHTML = qs.map((q, i) => {
+    const cat = category(q);
+    return `<button class="well" type="button" data-i="${i}" aria-label="Question ${i + 1}: ${CATS[cat].label}"><span class="nucleus${CATS[cat].hollow ? " hollow" : ""}" style="--c:${CATS[cat].color}"></span></button>`;
+  }).join("");
+
   bar.addEventListener("click", (ev) => {
     const b = ev.target.closest("button");
     if (b) setFilter(b.dataset.f);
   });
+  tray.addEventListener("click", (ev) => {
+    const w = ev.target.closest(".well");
+    if (!w) return;
+    current = Number(w.dataset.i);
+    render();
+  });
+  tray.addEventListener("pointermove", (ev) => {
+    const w = ev.target.closest(".well");
+    if (!w) return hideTip();
+    const i = Number(w.dataset.i);
+    const q = qs[i];
+    showTip(`<div class="t-head">Specimen ${String(i + 1).padStart(3, "0")}</div><div>${esc(q.question.slice(0, 110))}${q.question.length > 110 ? "…" : ""}</div>`, ev.clientX, ev.clientY);
+  });
+  tray.addEventListener("pointerleave", hideTip);
+  tray.addEventListener("keydown", (ev) => {
+    if (ev.key === "ArrowRight" || ev.key === "ArrowLeft") {
+      ev.preventDefault();
+      step(ev.key === "ArrowRight" ? 1 : -1);
+      const now = tray.querySelector('[aria-current="true"]');
+      if (now) now.focus();
+    }
+  });
+  view.addEventListener("click", (ev) => {
+    const b = ev.target.closest(".step");
+    if (b) step(Number(b.dataset.d));
+  });
+
+  const counts = {};
+  qs.forEach((q) => (counts[category(q)] = (counts[category(q)] || 0) + 1));
+  document.getElementById("legend-tray").innerHTML = Object.keys(CATS).map((c) => `<li>${keyDot(c)}${CATS[c].label}<b>${counts[c] || 0}</b></li>`).join("");
+  render();
 }
 
 function theme() {
@@ -516,7 +582,8 @@ function theme() {
 }
 
 theme();
-tissue();
+tissue("tissue", 7, 0.28);
+tissue("tissue2", 23, -0.04);
 Promise.all([fetch("data/evaluation.json").then((r) => r.json()), fetch("data/examples.json").then((r) => r.json())])
   .then(([data, ex]) => {
     hero(data);
