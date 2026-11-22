@@ -275,6 +275,7 @@ h3 { margin: 0 0 6px; font-size: 18px; font-weight: 600; letter-spacing: -0.01em
   box-shadow: var(--shadow);
   overflow: hidden;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .chat-top {
@@ -316,6 +317,8 @@ h3 { margin: 0 0 6px; font-size: 18px; font-weight: 600; letter-spacing: -0.01em
   align-content: start;
   gap: 18px;
   scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: var(--axis) transparent;
 }
 
 .msg { min-width: 0; }
@@ -331,14 +334,60 @@ h3 { margin: 0 0 6px; font-size: 18px; font-weight: 600; letter-spacing: -0.01em
 .thinking em { font-style: normal; margin-left: 8px; }
 @keyframes bob { 0%, 100% { opacity: 0.25; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-3px); } }
 
+.suggest-wrap { position: relative; min-width: 0; border-top: 1px solid var(--grid); }
+
+.suggest-wrap::before,
+.suggest-wrap::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 72px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 1;
+}
+
+.suggest-wrap::before { left: 0; background: linear-gradient(90deg, var(--surface) 30%, transparent); }
+.suggest-wrap::after { right: 0; background: linear-gradient(270deg, var(--surface) 30%, transparent); }
+.suggest-wrap[data-left="1"]::before, .suggest-wrap[data-right="1"]::after { opacity: 1; }
+
 .suggest {
   display: flex;
   gap: 8px;
   overflow-x: auto;
   padding: 12px clamp(16px, 2.4vw, 26px);
-  border-top: 1px solid var(--grid);
-  scrollbar-width: thin;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
+
+.suggest::-webkit-scrollbar { display: none; }
+
+.nudge {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  width: 34px;
+  height: 34px;
+  margin-top: -17px;
+  padding: 0 0 2px;
+  border-radius: 50%;
+  border: 1px solid var(--ring);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  box-shadow: var(--shadow);
+}
+
+.nudge:hover { border-color: var(--accent); }
+.nudge.left { left: 10px; }
+.nudge.right { right: 10px; }
+.nudge[hidden] { display: none; }
 
 .chipbutton {
   flex: none;
@@ -360,7 +409,7 @@ h3 { margin: 0 0 6px; font-size: 18px; font-weight: 600; letter-spacing: -0.01em
   grid-template-columns: 1fr auto auto;
   gap: 10px;
   align-items: end;
-  padding: 0 clamp(16px, 2.4vw, 26px) 6px;
+  padding: 4px clamp(16px, 2.4vw, 26px) 6px;
 }
 
 .composer textarea {
@@ -535,7 +584,7 @@ pre {
 
 .table-view { margin-top: 10px; font-size: 13px; color: var(--ink-2); }
 .table-view summary { cursor: pointer; width: fit-content; }
-.table-scroll { overflow: auto; margin-top: 10px; border: 1px solid var(--ring); border-radius: 12px; }
+.table-scroll { scrollbar-width: thin; scrollbar-color: var(--axis) transparent; overflow: auto; margin-top: 10px; border: 1px solid var(--ring); border-radius: 12px; }
 
 table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
 th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--grid); vertical-align: top; }
