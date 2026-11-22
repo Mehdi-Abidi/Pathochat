@@ -87,10 +87,10 @@
       <h2>How an answer is made</h2>
     </div>
     <ol class="pipeline">
-      <li><span class="step-n">1</span><h3>Embed</h3><p>The question becomes 384 numbers with the all-MiniLM-L6-v2 sentence encoder.</p></li>
-      <li><span class="step-n">2</span><h3>Search</h3><p>FAISS finds the five closest of 23,814 passages cut from Robbins &amp; Cotran and Pathoma.</p></li>
-      <li><span class="step-n">3</span><h3>Prompt</h3><p>The passages and the question go to the model with one rule: use the passages when they are relevant, and standard pathology when they are not.</p></li>
-      <li><span class="step-n">4</span><h3>Answer</h3><p>Qwen3.8-27B writes the answer, and the app lists the passages it was given so you can check them.</p></li>
+      <li><span class="step-n">01</span><h3>Embed</h3><p>The question becomes 384 numbers with the all-MiniLM-L6-v2 sentence encoder.</p></li>
+      <li><span class="step-n">02</span><h3>Search</h3><p>FAISS finds the five closest of 23,814 passages cut from Robbins &amp; Cotran and Pathoma.</p></li>
+      <li><span class="step-n">03</span><h3>Prompt</h3><p>The passages and the question go to the model with one rule: use the passages when they are relevant, and standard pathology when they are not.</p></li>
+      <li><span class="step-n">04</span><h3>Answer</h3><p>Qwen3.8-27B writes the answer, and the app lists the passages it was given so you can check them.</p></li>
     </ol>
   </section>
 
@@ -133,15 +133,24 @@
     </div>
   </section>
 
-  <section id="explorer" class="section">
-    <div class="section-head">
-      <p class="kicker">04 · Explorer</p>
-      <h2>Every test question, both builds</h2>
-      <p class="sub">Open any question to see the options, the keyed answer, what each build chose, and the one-line reason the current build gave.</p>
+  <section id="explorer" class="band">
+    <svg class="tissue" id="tissue2" aria-hidden="true"></svg>
+    <div class="band-inner">
+      <div class="section-head">
+        <p class="kicker">04 · Explorer</p>
+        <h2>The slide box</h2>
+        <p class="sub">One hundred test questions, one specimen each. Pick a specimen to put it under the lens: the options, the keyed answer, what each build chose, and why.</p>
+      </div>
+      <div class="filters" id="filters" role="group" aria-label="Filter questions"></div>
+      <div class="viewer">
+        <div class="traybox">
+          <div class="tray" id="tray" aria-label="Test questions"></div>
+          <ul class="legend" id="legend-tray" aria-label="Legend"></ul>
+          <p class="tray-hint">Select a specimen, or use the arrow keys to move through them.</p>
+        </div>
+        <article class="specimen" id="specimen" aria-live="polite"></article>
+      </div>
     </div>
-    <div class="filters" id="filters" role="group" aria-label="Filter questions"></div>
-    <div class="qlist" id="qlist"></div>
-    <button class="more" id="more" type="button">Show all questions</button>
   </section>
 
   <section class="section">
