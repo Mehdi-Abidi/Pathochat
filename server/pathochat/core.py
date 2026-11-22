@@ -13,6 +13,8 @@ BASE_URL = os.getenv("LLM_BASE_URL", "https://api.groq.com/openai/v1").rstrip("/
 MODEL = os.getenv("LLM_MODEL", "qwen/qwen3.8-27b")
 FALLBACK_MODEL = os.getenv("LLM_FALLBACK_MODEL", "openai/gpt-oss-120b")
 SPEECH_MODEL = os.getenv("SPEECH_MODEL", "whisper-large-v3-turbo")
+SPEECH_HINT = ("A student asks a pathology question. Terms that may come up: nephritic syndrome, nephrotic syndrome, apoptosis, necrosis, "
+               "granuloma, amyloidosis, Reed-Sternberg cell, Hodgkin lymphoma, myocardial infarction, thrombus, embolus, metaplasia, dysplasia.")
 PASSAGES = 5
 MAX_QUESTION = 600
 MAX_AUDIO = 4 * 1024 * 1024
@@ -116,7 +118,7 @@ def transcribe(audio, content_type, who):
     ext = {"audio/webm": "webm", "audio/ogg": "ogg", "audio/mp4": "mp4", "audio/mpeg": "mp3", "audio/wav": "wav", "audio/x-wav": "wav"}.get(kind, "webm")
     r = requests.post(BASE_URL + "/audio/transcriptions", headers={"Authorization": "Bearer " + key()},
                       files={"file": ("question." + ext, audio, kind)},
-                      data={"model": SPEECH_MODEL, "language": "en", "prompt": "A question about pathology."}, timeout=50)
+                      data={"model": SPEECH_MODEL, "language": "en", "prompt": SPEECH_HINT}, timeout=50)
     if r.status_code != 200:
         raise Problem(502, "The recording could not be transcribed. Try again.")
     return {"text": (r.json().get("text") or "").strip()}
