@@ -1,0 +1,6 @@
+pandas
+pyarrow
+requests
+faiss-cpu
+sentence-transformers
+langchain-community
