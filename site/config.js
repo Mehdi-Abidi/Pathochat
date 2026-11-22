@@ -1,1 +1,1 @@
-window.PATHOCHAT_API = "";
+window.PATHOCHAT_API = "https://pathochat-api.vercel.app";
