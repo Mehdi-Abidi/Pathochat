@@ -1,0 +1,7 @@
+requests
+numpy
+faiss-cpu
+sentence-transformers
+langchain-community
+pandas
+pyarrow
