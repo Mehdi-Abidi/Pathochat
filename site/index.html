@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PathoChat: a pathology tutor that reads before it answers</title>
+<meta name="description" content="PathoChat answers pathology questions from Robbins and Pathoma, and was measured on 100 held-out exam questions.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="hero">
+  <svg class="tissue" id="tissue" aria-hidden="true"></svg>
+  <nav class="topbar">
+    <a class="brand" href="#top"><span class="brand-mark"></span>PathoChat</a>
+    <span class="nav-links">
+      <a href="#demo">Demo</a>
+      <a href="#how">How it works</a>
+      <a href="#evaluation">Evaluation</a>
+      <a href="#explorer">Explorer</a>
+      <a href="https://github.com/Mehdi-Abidi/Pathochat">GitHub</a>
+      <button id="theme" class="ghost" type="button" aria-label="Switch between light and dark theme">Theme</button>
+    </span>
+  </nav>
+
+  <div class="hero-grid" id="top">
+    <div>
+      <p class="eyebrow">Retrieval-augmented pathology tutor</p>
+      <h1>It reads Robbins <em>before</em> it answers.</h1>
+      <p class="lede">PathoChat searches 23,814 passages from two pathology textbooks, hands the closest five to a language model, and shows you what it read. It was then scored on an exam it had never seen, and rebuilt around what the score showed.</p>
+      <p class="cta">
+        <a class="button primary" href="#demo">See it answer</a>
+        <a class="button" href="#evaluation">Read the evaluation</a>
+      </p>
+    </div>
+
+    <aside class="slide" aria-label="Headline result">
+      <div class="slide-label">
+        <span>H&amp;E</span>
+        <span>MedMCQA</span>
+        <span>Pathology</span>
+        <span>n = 100</span>
+      </div>
+      <div class="slide-body">
+        <p class="slide-eyebrow">Held-out exam questions answered correctly</p>
+        <p class="hero-figure"><span id="hero-new">86</span><span class="unit">%</span></p>
+        <div class="before-after" id="before-after"></div>
+        <p class="slide-foot">Model chosen on a separate dev set. Each test run was done once.</p>
+      </div>
+    </aside>
+  </div>
+</header>
+
+<main>
+  <section id="demo" class="section">
+    <div class="section-head">
+      <p class="kicker">01 · Demo</p>
+      <h2>Ask it something</h2>
+      <p class="sub">Eight questions, answered by the same pipeline the app runs: five retrieved passages, the app's prompt, and <span id="demo-model">the model</span>. The answers are saved so this page needs no server.</p>
+    </div>
+    <div class="demo">
+      <div class="questions" id="questions" role="tablist" aria-label="Example questions"></div>
+      <div class="chat" id="chat" role="tabpanel" aria-live="polite"></div>
+    </div>
+    <div class="callout">
+      <div>
+        <h3>Want to ask your own question?</h3>
+        <p>A live chat needs a server to hold the API key, so it does not run on this static page. The app itself takes two commands.</p>
+      </div>
+      <pre><code>pip install -r requirements.txt
+LLM_API_KEY=your_groq_key streamlit run Pathochat.py</code></pre>
+    </div>
+  </section>
+
+  <section id="how" class="section">
+    <div class="section-head">
+      <p class="kicker">02 · Pipeline</p>
+      <h2>How an answer is made</h2>
+    </div>
+    <ol class="pipeline">
+      <li><span class="step-n">1</span><h3>Embed</h3><p>The question becomes 384 numbers with the all-MiniLM-L6-v2 sentence encoder.</p></li>
+      <li><span class="step-n">2</span><h3>Search</h3><p>FAISS finds the five closest of 23,814 passages cut from Robbins &amp; Cotran and Pathoma.</p></li>
+      <li><span class="step-n">3</span><h3>Prompt</h3><p>The passages and the question go to the model with one rule: use the passages when they are relevant, and standard pathology when they are not.</p></li>
+      <li><span class="step-n">4</span><h3>Answer</h3><p>Qwen3.8-27B writes the answer, and the app lists the passages it was given so you can check them.</p></li>
+    </ol>
+  </section>
+
+  <section id="evaluation" class="section">
+    <div class="section-head">
+      <p class="kicker">03 · Evaluation</p>
+      <h2>Measured on an exam it had not seen</h2>
+      <p class="sub">MedMCQA holds Indian postgraduate medical entrance questions. Its validation split has 259 single-answer pathology questions. A fixed random draw took 100 as the test set, and the other 159 were kept for choosing the model.</p>
+    </div>
+
+    <div class="tiles" id="tiles"></div>
+
+    <div class="split">
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>Four setups, the same 100 questions</h3>
+            <p class="note">Share answered correctly. Whiskers show the 95% interval. Guessing would score 25%.</p>
+          </div>
+        </div>
+        <div class="chart" id="chart-setups"></div>
+        <details class="table-view"><summary>Show the data as a table</summary><div class="table-scroll" id="table-setups"></div></details>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>What happened to each question</h3>
+            <p class="note">One dot per test question, comparing the first build with the current one. Select a dot to open it.</p>
+          </div>
+        </div>
+        <div class="chart" id="chart-units"></div>
+        <ul class="legend" id="legend-units" aria-label="Legend"></ul>
+      </div>
+    </div>
+
+    <div class="finding">
+      <h3>The finding that changed the plan</h3>
+      <p>Retrieval did not raise accuracy for either model. Mistral-7B scored 60 without the passages and 59 with them. Qwen3.8-27B scored 91 without them and 86 with them: the passages never turned a wrong answer into a right one, and on five questions they turned a right answer into a wrong one. The text of the correct option appears in the retrieved passages for only 22 of the 100 questions, so most of the time the model is handed pages that are near the topic and beside the point. The gain from 59 to 86 comes from the model and the prompt. Filtering weak passages before they reach the model is the next step.</p>
+    </div>
+  </section>
+
+  <section id="explorer" class="section">
+    <div class="section-head">
+      <p class="kicker">04 · Explorer</p>
+      <h2>Every test question, both builds</h2>
+      <p class="sub">Open any question to see the options, the keyed answer, what each build chose, and the one-line reason the current build gave.</p>
+    </div>
+    <div class="filters" id="filters" role="group" aria-label="Filter questions"></div>
+    <div class="qlist" id="qlist"></div>
+    <button class="more" id="more" type="button">Show all questions</button>
+  </section>
+
+  <section class="section">
+    <div class="split even">
+      <div class="panel prose">
+        <h3>What the numbers do not say</h3>
+        <ul>
+          <li>One hundred questions give wide intervals. A difference of a few points means little.</li>
+          <li>Exam questions with four options are not the open questions people type into the app.</li>
+          <li>MedMCQA is public, so either model may have seen these questions during training.</li>
+          <li>The Mistral-7B runs used a 4-bit copy of the model on a laptop. The first deployment used a hosted copy with slightly different settings.</li>
+          <li>This is a study aid and a student project. It is not medical advice.</li>
+        </ul>
+      </div>
+      <div class="panel prose">
+        <h3>Check it yourself</h3>
+        <p>The repository holds the script, the prompts and one line per question for every run.</p>
+        <pre><code>pip install -r evaluation/requirements.txt
+export LLM_BASE_URL=https://api.groq.com/openai/v1
+export LLM_API_KEY=your_key
+python evaluation/evaluate.py run --name rerun \
+  --model qwen/qwen3.8-27b --prompt tutor</code></pre>
+        <p class="links"><a href="https://github.com/Mehdi-Abidi/Pathochat/tree/main/evaluation">Method and results</a><a href="https://huggingface.co/datasets/openlifescienceai/medmcqa">MedMCQA dataset</a></p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <p>Built by <a href="https://github.com/Mehdi-Abidi">Syed Muhammad Mehdi Abidi</a>. Passages come from Robbins &amp; Cotran Pathologic Basis of Disease and Pathoma, quoted briefly for study. Questions come from MedMCQA.</p>
+</footer>
+
+<div class="tooltip" id="tooltip" role="status" aria-live="polite"></div>
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
