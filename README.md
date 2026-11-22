@@ -56,8 +56,11 @@ pipenv shell
 Create a `.env` file in the root of the project:
 
 ```env
-HF_TOKEN="your_openai_key_here"
+HF_TOKEN="your_hugging_face_token"
+LLM_API_KEY="your_groq_key"
 ```
+
+With `LLM_API_KEY` set, the app answers through an OpenAI-compatible endpoint. The defaults are Groq and `qwen/qwen3.8-27b`, and you can change them with `LLM_BASE_URL` and `LLM_MODEL`. Without `LLM_API_KEY` the app falls back to Mistral-7B on the Hugging Face endpoint, which needs `HF_TOKEN`.
 
 ---
 
@@ -71,6 +74,12 @@ streamlit run Pathochat.py
 
 Your browser should open automatically at:  
 [http://localhost:8501](http://localhost:8501)
+
+---
+
+## Evaluation (November 2026)
+
+PathoChat was scored on 100 held-out pathology questions from MedMCQA. The original setup (Mistral-7B with a context-only prompt) answered 59 correctly. The current setup (Qwen3.8-27B with a prompt that may fall back on standard pathology knowledge) answers 86. The same model without retrieval answers 91, so on exam questions the gain comes from the model and the prompt, and weak passages can mislead a strong model. The method, all results and the script are in [evaluation/](evaluation/README.md).
 
 ---
 
